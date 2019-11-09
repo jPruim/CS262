@@ -10,7 +10,11 @@ final dummySnapshot = [
  {"name": "Ike", "votes": 10},
  {"name": "Justin", "votes": 1},
 ];
-
+Future<String> getLanguage(Record record) async{
+  await Firestore.instance.collection('languages').document(record.language).get().then((docSnap) {
+  return docSnap['region'];
+  });
+}
 class MyApp extends StatelessWidget {
  @override
  Widget build(BuildContext context) {
@@ -29,6 +33,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  Firestore db = Firestore.instance;
  @override
  Widget build(BuildContext context) {
    return Scaffold(
@@ -39,6 +44,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
  Widget _buildBody(BuildContext context) {
  return StreamBuilder<QuerySnapshot>(
+   
    stream: Firestore.instance.collection('baby').snapshots(),
    builder: (context, snapshot) {
      if (!snapshot.hasData) return LinearProgressIndicator();
@@ -56,8 +62,14 @@ class _MyHomePageState extends State<MyHomePage> {
  }
 
 Widget _buildListItem(BuildContext context, DocumentSnapshot data) {
+  String _text = "";
   final record = Record.fromSnapshot(data);
-
+  
+  _MyHomePageState(){
+    getLanguage(record).then((val)=>setState((){
+      _text = val;
+    }));
+  }
    return Padding(
      key: ValueKey(record.name),
      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -67,29 +79,79 @@ Widget _buildListItem(BuildContext context, DocumentSnapshot data) {
          borderRadius: BorderRadius.circular(5.0),
        ),
        child: ListTile(
-         title: Text(record.name),
+         title: Text(record.name+": "+ record.language.toString()),
+        
+         subtitle:Text(_text),
+        //  subtitle: region!=null ? Text(region) : Text("still null"),
+
+        // title: Text(record.toString()),
          trailing: Text(record.votes.toString()),
-         onTap: () => record.reference.updateData({'votes': record.votes + 1})
+         onTap: () => record.reference.updateData({'votes': FieldValue.increment(1)})
        ),
      ),
    );
  }
 }
 
+// class Language {
+//   String region;
+//   Stream<QuerySnapshot> snapshots;
+
+//   Language.fromMap(Map<String, dynamic> map) :
+//      region = map['region'];
+  
+
+//   Language.fromSnapshot(Record record) :
+//     this.fromMap(( Firestore.instance.collection('languages').document(record.language).get() ).data);
+  
+
+// }
+// class Record {
+//  final String name;
+//  final int votes;
+//  final DocumentReference reference;
+
+//  Record.fromMap(Map<String, dynamic> map, {this.reference})
+//      : assert(map['name'] != null),
+//        assert(map['votes'] != null),
+//        name = map['name'],
+//        votes = map['votes'];
+
+//  Record.fromSnapshot(DocumentSnapshot snapshot)
+//      : this.fromMap(snapshot.data, reference: snapshot.reference);
+
+//  @override
+//  String toString() => "Record<$name:$votes>";
+// }
 class Record {
- final String name;
- final int votes;
- final DocumentReference reference;
+  String name;
+  int votes;
+  String language;
+  DocumentReference reference;
+  String region;
 
  Record.fromMap(Map<String, dynamic> map, {this.reference})
-     : assert(map['name'] != null),
+     : assert(map['language'] != null),
+       assert(map['name'] != null),
        assert(map['votes'] != null),
-       name = map['name'],
-       votes = map['votes'];
-
+       this.language = map['language'],
+       this.name = map['name'],
+       this.votes = map['votes'];
+       
+  Future<String> getRegion() async{
+    DocumentReference document = Firestore.instance.collection('languages').document(this.language.toString());
+    document.get().then((datasnapshot) {
+      this.region =  datasnapshot['region'].toString();
+      // print(this.region);
+    });
+    return this.region;
+  }
+  void setRegion() async{
+    this.region = await getRegion();
+  }
  Record.fromSnapshot(DocumentSnapshot snapshot)
      : this.fromMap(snapshot.data, reference: snapshot.reference);
 
  @override
- String toString() => "Record<$name:$votes>";
+ String toString() => "Record<$name:$votes:$language:$region>";
 }
